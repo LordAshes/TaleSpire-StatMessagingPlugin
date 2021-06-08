@@ -7,6 +7,9 @@ using the same synchronization technique.
 
 ## Change Log
 
+1.1.1: Added ReadInfo to be able to read the last value for a given key
+1.1.0: Initial contents are processed as changes
+1.1.0: Reset added for situations like board changes where old data should be purged
 1.0.0: Initial release
 
 ## Install

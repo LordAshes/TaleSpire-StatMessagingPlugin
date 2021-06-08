@@ -13,7 +13,7 @@ namespace LordAshes
         // Plugin info
         public const string Name = "Stat Messaging Plug-In";
         public const string Guid = "org.lordashes.plugins.statmessaging";
-        public const string Version = "1.1.0.0";
+        public const string Version = "1.1.1.0";
 
         private static object exclusionLock = new object();
 
@@ -203,6 +203,35 @@ namespace LordAshes
                     // Update character name
                     CreatureManager.SetCreatureName(cid, asset.Creature.Name.Substring(0, asset.Creature.Name.IndexOf("<size=0>") + "<size=0>".Length) + JsonConvert.SerializeObject(info));
                 }
+            }
+        }
+
+        /// <summary>
+        /// Method used to read the last recorded value for a particular key on a particular creature
+        /// (typically used to get current values for things like inputs)
+        /// </summary>
+        /// <param name="cid">Identification of the creature whose key is to bb read</param>
+        /// <param name="key">Identification of the key to be read</param>
+        /// <returns>Value of the key or an empty string if the key is not set or the cid is invalid</returns>
+        public static string ReadInfo(CreatureGuid cid, string key)
+        {
+            // Minimize race conditions
+            lock (exclusionLock)
+            {
+                if (data.ContainsKey(cid))
+                {
+                    string json = data[cid];
+                    Dictionary<string, string> keys = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
+                    if(keys.ContainsKey(key))
+                    {
+                        return keys[key];
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning("Creature '" + cid + "' not defined in data dictionary");
+                }
+                return "";
             }
         }
 

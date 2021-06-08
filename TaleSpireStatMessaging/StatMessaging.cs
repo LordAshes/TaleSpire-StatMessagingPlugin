@@ -13,7 +13,7 @@ namespace LordAshes
         // Plugin info
         public const string Name = "Stat Messaging Plug-In";
         public const string Guid = "org.lordashes.plugins.statmessaging";
-        public const string Version = "1.1.1.0";
+        public const string Version = "1.1.2.0";
 
         private static object exclusionLock = new object();
 
@@ -221,6 +221,7 @@ namespace LordAshes
                 if (data.ContainsKey(cid))
                 {
                     string json = data[cid];
+                    json = json.Substring(json.IndexOf("<size=0>") + "<size=0>".Length);
                     Dictionary<string, string> keys = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
                     if(keys.ContainsKey(key))
                     {

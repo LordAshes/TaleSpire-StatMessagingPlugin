@@ -13,7 +13,7 @@ namespace LordAshes
         // Plugin info
         public const string Name = "Stat Messaging Plug-In";
         public const string Guid = "org.lordashes.plugins.statmessaging";
-        public const string Version = "1.0.0.0";
+        public const string Version = "1.1.0.0";
 
         private static object exclusionLock = new object();
 
@@ -84,7 +84,7 @@ namespace LordAshes
                     if (!data.ContainsKey(asset.Creature.CreatureId))
                     {
                         Debug.Log("Adding Mini '" + asset.Creature.CreatureId + "' to the data dictionary...");
-                        data.Add(asset.Creature.CreatureId, creatureName);
+                        data.Add(asset.Creature.CreatureId, creatureName.Substring(0, creatureName.IndexOf("<size=0>")) + "<size=0>{}");
                     }
                     // Check to see if the creature name has changed
                     if (creatureName != data[asset.Creature.CreatureId])
@@ -113,16 +113,16 @@ namespace LordAshes
                             if (!current.ContainsKey(entry.Key))
                             {
                                 Debug.Log("Adding Removed Change");
-                                changes.Add(new Change() { action = ChangeType.removed, key = entry.Key, previous = entry.Value, value="", cid = asset.Creature.CreatureId });
+                                changes.Add(new Change() { action = ChangeType.removed, key = entry.Key, previous = entry.Value, value = "", cid = asset.Creature.CreatureId });
                             }
                             else
                             {
                                 // If last data does not match current data then the data has been modified
-                                Debug.Log("Last had '" + entry.Key + "'='" + entry.Value + "'. Current has '"+entry.Key+"'='"+current[entry.Key]+"'");
+                                Debug.Log("Last had '" + entry.Key + "'='" + entry.Value + "'. Current has '" + entry.Key + "'='" + current[entry.Key] + "'");
                                 if (entry.Value != current[entry.Key])
                                 {
                                     Debug.Log("Adding Modified Change");
-                                    changes.Add(new Change() { action = ChangeType.modified, key = entry.Key, previous = entry.Value, value = current[entry.Key], cid = asset.Creature.CreatureId }); 
+                                    changes.Add(new Change() { action = ChangeType.modified, key = entry.Key, previous = entry.Value, value = current[entry.Key], cid = asset.Creature.CreatureId });
                                 };
                             }
                         }
@@ -131,10 +131,10 @@ namespace LordAshes
                         {
                             // If current data does not exist in last data then a new entry has been added
                             Debug.Log("Current has '" + entry.Key + "'. Current too? " + last.ContainsKey(entry.Key));
-                            if (!last.ContainsKey(entry.Key)) 
+                            if (!last.ContainsKey(entry.Key))
                             {
                                 Debug.Log("Adding Added Change");
-                                changes.Add(new Change() { action = ChangeType.added, key = entry.Key, previous = "", value = entry.Value, cid=asset.Creature.CreatureId }); 
+                                changes.Add(new Change() { action = ChangeType.added, key = entry.Key, previous = "", value = entry.Value, cid = asset.Creature.CreatureId });
                             };
                         }
                         Debug.Log("Comparisons complete");
@@ -204,6 +204,16 @@ namespace LordAshes
                     CreatureManager.SetCreatureName(cid, asset.Creature.Name.Substring(0, asset.Creature.Name.IndexOf("<size=0>") + "<size=0>".Length) + JsonConvert.SerializeObject(info));
                 }
             }
+        }
+
+        /// <summary>
+        /// Method used to reset the data dictionary and thus reprocess all Stat Message changes.
+        /// Typically used on a new board load to dump old board data and also to re-process it if the board is reloaded.
+        /// </summary>
+        public static void Reset()
+        {
+            Debug.Log("Stat Messaging data dictionary reset");
+            data.Clear();
         }
     }
 }

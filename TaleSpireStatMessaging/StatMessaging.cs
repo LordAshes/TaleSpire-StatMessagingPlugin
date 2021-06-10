@@ -13,11 +13,25 @@ namespace LordAshes
         // Plugin info
         public const string Name = "Stat Messaging Plug-In";
         public const string Guid = "org.lordashes.plugins.statmessaging";
-        public const string Version = "1.1.2.0";
+        public const string Version = "1.2.0.0";
 
+        // Prevent multiple sources from modifying data at once
         private static object exclusionLock = new object();
 
+        // Holds the data associated with each mini
         private static Dictionary<CreatureGuid, string> data = new Dictionary<CreatureGuid, string>();
+
+        // Holds callback subscriptions for message distribution
+        private static Dictionary<System.Guid, Subscription> subscriptions = new Dictionary<Guid, Subscription>();
+
+        /// <summary>
+        /// Class for holding callback subscriptions
+        /// </summary>
+        public class Subscription
+        {
+            public string key { get; set; }
+            public Action<Change[]> callback { get; set; }
+        }
 
         /// <summary>
         /// Enumeration to determine what type of change occured
@@ -44,111 +58,76 @@ namespace LordAshes
         // Variable to prevent overlapping checks in case the check is taking too long
         private static bool checkInProgress = false;
 
+        private static bool ready = false;
+
+
+        /// <summary>
+        /// Method triggered when the plugin loads
+        /// </summary>
+        public void Awake()
+        {
+            Debug.Log("Stat Messaging Plugin now active. Automatic message checks will being when the board loads.");
+            BoardSessionManager.OnStateChange += (s) =>
+            {
+                if (s.ToString().Contains("+Active"))
+                { 
+                    ready = true;
+                    Debug.Log("Stat Messaging started looking for messages.");
+                } 
+                else 
+                { 
+                    ready = false;
+                    StatMessaging.Reset();
+                    Debug.Log("Stat Messaging stopped looking for messages.");
+                }
+            };
+        }
+
+        /// <summary>
+        /// Method triggered periodically
+        /// </summary>
+        public void Update()
+        {
+            if (ready) { StatMessagingCheck(); }
+        }
+
         /// <summary>
         /// Method that checks for Stat Messaging changes (changes to Creature Name) itentifies the changes via callback
         /// </summary>
         /// <param name="dataChangeCallback">Callback that accepts a array of </param>
+        [Obsolete]
         public static void Check(Action<Change[]> dataChangeCallback)
         {
-            if (checkInProgress) { return; }
-
-            // Prevent overlapping checks (in case checks are taking too long)
-            checkInProgress = true;
-
-            try
+            foreach (Subscription subscription in subscriptions.Values)
             {
-                // Check all creatures
-                foreach (CreatureBoardAsset asset in CreaturePresenter.AllCreatureAssets)
-                {
-                    // Read the creature name into a string. Routine will use this because setting name takes time (i.e. is not reflected immediately).
-                    string creatureName = asset.Creature.Name;
-
-                    // Ensure creature has a JSON Block
-                    if (!creatureName.Contains("<size=0>"))
-                    {
-                        Debug.Log("Adding JSON Block to '" + asset.Creature.CreatureId + "'");
-                        if (data.ContainsKey(asset.Creature.CreatureId))
-                        {
-                            Debug.Log("Restoring previous data. Probably lost due to a character rename");
-                            CreatureManager.SetCreatureName(asset.Creature.CreatureId, data[asset.Creature.CreatureId]);
-                            creatureName = data[asset.Creature.CreatureId];
-                        }
-                        else
-                        {
-                            Debug.Log("Creating new data block. This is probably a new asset");
-                            CreatureManager.SetCreatureName(asset.Creature.CreatureId, creatureName + " <size=0>{}");
-                            creatureName = creatureName + " <size=0>{}";
-                        }
-                    }
-                    // Ensure that creature has a entry in the data dictionary
-                    if (!data.ContainsKey(asset.Creature.CreatureId))
-                    {
-                        Debug.Log("Adding Mini '" + asset.Creature.CreatureId + "' to the data dictionary...");
-                        data.Add(asset.Creature.CreatureId, creatureName.Substring(0, creatureName.IndexOf("<size=0>")) + "<size=0>{}");
-                    }
-                    // Check to see if the creature name has changed
-                    if (creatureName != data[asset.Creature.CreatureId])
-                    {
-                        Debug.Log("Change Detected (current) '" + creatureName + "' vs (dictionary) '" + data[asset.Creature.CreatureId] + "'");
-                        // Extract JSON ending
-                        string lastJson = data[asset.Creature.CreatureId].Substring(data[asset.Creature.CreatureId].IndexOf("<size=0>") + "<size=0>".Length);
-                        string currentJson = creatureName.Substring(creatureName.IndexOf("<size=0>") + "<size=0>".Length);
-                        Debug.Log("Last: " + lastJson);
-                        Debug.Log("Current: " + currentJson);
-                        // Compare entries
-                        Debug.Log("Deserializing Last");
-                        Dictionary<string, string> last = JsonConvert.DeserializeObject<Dictionary<string, string>>(lastJson);
-                        Debug.Log("Deserializing Current");
-                        Dictionary<string, string> current = JsonConvert.DeserializeObject<Dictionary<string, string>>(currentJson);
-                        // Update data dictionary with current info
-                        Debug.Log("Updating Data To Match Name");
-                        data[asset.Creature.CreatureId] = creatureName;
-                        Debug.Log("Conversion to dictionaries complete");
-                        List<Change> changes = new List<Change>();
-                        // Compare entries in the last data to current data
-                        foreach (KeyValuePair<string, string> entry in last)
-                        {
-                            // If last data does not appear in current data then the data was removed
-                            Debug.Log("Last had '" + entry.Key + "'. Current too? " + current.ContainsKey(entry.Key));
-                            if (!current.ContainsKey(entry.Key))
-                            {
-                                Debug.Log("Adding Removed Change");
-                                changes.Add(new Change() { action = ChangeType.removed, key = entry.Key, previous = entry.Value, value = "", cid = asset.Creature.CreatureId });
-                            }
-                            else
-                            {
-                                // If last data does not match current data then the data has been modified
-                                Debug.Log("Last had '" + entry.Key + "'='" + entry.Value + "'. Current has '" + entry.Key + "'='" + current[entry.Key] + "'");
-                                if (entry.Value != current[entry.Key])
-                                {
-                                    Debug.Log("Adding Modified Change");
-                                    changes.Add(new Change() { action = ChangeType.modified, key = entry.Key, previous = entry.Value, value = current[entry.Key], cid = asset.Creature.CreatureId });
-                                };
-                            }
-                        }
-                        // Compare entries in current data to last data
-                        foreach (KeyValuePair<string, string> entry in current)
-                        {
-                            // If current data does not exist in last data then a new entry has been added
-                            Debug.Log("Current has '" + entry.Key + "'. Current too? " + last.ContainsKey(entry.Key));
-                            if (!last.ContainsKey(entry.Key))
-                            {
-                                Debug.Log("Adding Added Change");
-                                changes.Add(new Change() { action = ChangeType.added, key = entry.Key, previous = "", value = entry.Value, cid = asset.Creature.CreatureId });
-                            };
-                        }
-                        Debug.Log("Comparisons complete");
-                        Debug.Log("Data updated. Changes = " + changes.Count);
-
-                        // Process callback if there were any changes
-                        if (changes.Count > 0) { Debug.Log("Triggering callback"); dataChangeCallback(changes.ToArray()); }
-                    }
-                }
+                if(subscription.callback == dataChangeCallback) { return; }
             }
-            catch (Exception x) { Debug.LogWarning(x); }
+            Debug.LogWarning("Stat Messaging method Check(callback) is obsolete. Use the Subscribe() method instead.");
+            Subscribe("*", dataChangeCallback);
+        }
 
-            // Indicated that next check is allowed
-            checkInProgress = false;
+        /// <summary>
+        /// Method to subscribe to Stat Messages of a certain key
+        /// (Guids are used for subscription removal instead of the key so that multiple plugins can be looking at the same messages)
+        /// </summary>
+        /// <param name="key">The key of the messages for which changes should trigger callbacks</param>
+        /// <param name="dataChangeCallback">Callback that receives the changes</param>
+        /// <returns>Guid associated with the subscription which can be used to unsubscribe</returns>
+        public static System.Guid Subscribe(string key, Action<Change[]> dataChangeCallback)
+        {
+            System.Guid guid = System.Guid.NewGuid();
+            subscriptions.Add(guid, new Subscription() { key = key, callback = dataChangeCallback });
+            return guid;
+        }
+
+        /// <summary>
+        /// Method to remove a subscription associated with a specific Guid
+        /// (Guids are used for subscription removal instead of the key so that multiple plugins can be looking at the same messages)
+        /// </summary>
+        /// <param name="subscriptionId">Guid of the subscription to be removed (provided by the Subscribe method)</param>
+        public static void Unsubscribe(System.Guid subscriptionId)
+        {
+            if (subscriptions.ContainsKey(subscriptionId)) { subscriptions.Remove(subscriptionId); }
         }
 
         /// <summary>
@@ -244,6 +223,116 @@ namespace LordAshes
         {
             Debug.Log("Stat Messaging data dictionary reset");
             data.Clear();
+        }
+
+        /// <summary>
+        /// Method that performs actual checks for stat messages
+        /// </summary>
+        private static void StatMessagingCheck()
+        {
+            if (checkInProgress) { return; }
+
+            // Prevent overlapping checks (in case checks are taking too long)
+            checkInProgress = true;
+
+            try
+            {
+                // Check all creatures
+                foreach (CreatureBoardAsset asset in CreaturePresenter.AllCreatureAssets)
+                {
+                    // Read the creature name into a string. Routine will use this because setting name takes time (i.e. is not reflected immediately).
+                    string creatureName = asset.Creature.Name;
+
+                    // Ensure creature has a JSON Block
+                    if (!creatureName.Contains("<size=0>"))
+                    {
+                        if (data.ContainsKey(asset.Creature.CreatureId))
+                        {
+                            Debug.Log("Restoring previous data for Creature '"+asset.Creature.Name+"' ("+asset.Creature.CreatureId+"). Probably lost due to a character rename.");
+                            CreatureManager.SetCreatureName(asset.Creature.CreatureId, data[asset.Creature.CreatureId]);
+                            creatureName = data[asset.Creature.CreatureId];
+                        }
+                        else
+                        {
+                            Debug.Log("Creating new data block for Creature '" + asset.Creature.Name + "' (" + asset.Creature.CreatureId + "). This is probably a new asset.");
+                            CreatureManager.SetCreatureName(asset.Creature.CreatureId, creatureName + " <size=0>{}");
+                            creatureName = creatureName + " <size=0>{}";
+                        }
+                    }
+                    // Ensure that creature has a entry in the data dictionary
+                    if (!data.ContainsKey(asset.Creature.CreatureId))
+                    {
+                        data.Add(asset.Creature.CreatureId, creatureName.Substring(0, creatureName.IndexOf("<size=0>")) + "<size=0>{}");
+                    }
+                    // Check to see if the creature name has changed
+                    if (creatureName != data[asset.Creature.CreatureId])
+                    {
+                        // Extract JSON ending
+                        string lastJson = data[asset.Creature.CreatureId].Substring(data[asset.Creature.CreatureId].IndexOf("<size=0>") + "<size=0>".Length);
+                        string currentJson = creatureName.Substring(creatureName.IndexOf("<size=0>") + "<size=0>".Length);
+                        // Compare entries
+                        Dictionary<string, string> last = JsonConvert.DeserializeObject<Dictionary<string, string>>(lastJson);
+                        Dictionary<string, string> current = JsonConvert.DeserializeObject<Dictionary<string, string>>(currentJson);
+                        // Update data dictionary with current info
+                        data[asset.Creature.CreatureId] = creatureName;
+                        List<Change> changes = new List<Change>();
+                        // Compare entries in the last data to current data
+                        foreach (KeyValuePair<string, string> entry in last)
+                        {
+                            // If last data does not appear in current data then the data was removed
+                            if (!current.ContainsKey(entry.Key))
+                            {
+                                changes.Add(new Change() { action = ChangeType.removed, key = entry.Key, previous = entry.Value, value = "", cid = asset.Creature.CreatureId });
+                            }
+                            else
+                            {
+                                // If last data does not match current data then the data has been modified
+                                if (entry.Value != current[entry.Key])
+                                {
+                                    changes.Add(new Change() { action = ChangeType.modified, key = entry.Key, previous = entry.Value, value = current[entry.Key], cid = asset.Creature.CreatureId });
+                                };
+                            }
+                        }
+                        // Compare entries in current data to last data
+                        foreach (KeyValuePair<string, string> entry in current)
+                        {
+                            // If current data does not exist in last data then a new entry has been added
+                            if (!last.ContainsKey(entry.Key))
+                            {
+                                changes.Add(new Change() { action = ChangeType.added, key = entry.Key, previous = "", value = entry.Value, cid = asset.Creature.CreatureId });
+                            };
+                        }
+
+                        // Process callback if there were any changes
+                        if (changes.Count > 0)
+                        {
+                            // Run through each change
+                            foreach (Change change in changes)
+                            {
+                                Debug.Log("Stat Messaging Change - Cid: " + change.cid + ", Type: " + change.action.ToString() + ", Key: " + change.key + ", Previous: " + change.previous + ", Current: " + change.value);
+                                // Check each subscription
+                                foreach (Subscription subscription in subscriptions.Values)
+                                {
+                                    // Trigger a callback for anyone subscription matching the key
+                                    if (subscription.key == change.key)
+                                    {
+                                        subscription.callback(new Change[] { change });
+                                    }
+                                }
+                            }
+                            // Check for legacy wild card subscriptions
+                            foreach (Subscription subscription in subscriptions.Values)
+                            {
+                                if (subscription.key == "*") { subscription.callback(changes.ToArray()); }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception x) { Debug.LogWarning(x); }
+
+            // Indicated that next check is allowed
+            checkInProgress = false;
         }
     }
 }

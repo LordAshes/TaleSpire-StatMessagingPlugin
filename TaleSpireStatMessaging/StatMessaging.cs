@@ -13,7 +13,7 @@ namespace LordAshes
         // Plugin info
         public const string Name = "Stat Messaging Plug-In";
         public const string Guid = "org.lordashes.plugins.statmessaging";
-        public const string Version = "1.2.0.0";
+        public const string Version = "1.2.1.0";
 
         // Prevent multiple sources from modifying data at once
         private static object exclusionLock = new object();
@@ -148,7 +148,6 @@ namespace LordAshes
                 {
                     // Extract the JSON portion of the name
                     string json = asset.Creature.Name.Substring(asset.Creature.Name.IndexOf("<size=0>") + "<size=0>".Length);
-                    Debug.Log("JSON: '" + json + "'");
                     // Convert to a dictionary
                     Dictionary<string, string> info = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
                     // Modify or add the specified value under the specified key
@@ -226,6 +225,30 @@ namespace LordAshes
         }
 
         /// <summary>
+        /// Method to get Creature Name
+        /// </summary>
+        /// <param name="asset">CreatureBoardAsset</param>
+        /// <returns>String representation of the creature name</returns>
+        public static string GetCreatureName(CreatureBoardAsset asset)
+        {
+            string name = asset.Creature.Name;
+            if (name.Contains("<size=0>")) { name = name.Substring(0, name.IndexOf("<size=0>")).Trim(); }
+            return name;
+        }
+
+        /// <summary>
+        /// Method to get Creature Name
+        /// </summary>
+        /// <param name="asset">CreatureBoardAsset</param>
+        /// <returns>String representation of the creature name</returns>
+        public static string GetCreatureName(Creature creature)
+        {
+            string name = creature.Name;
+            if (name.Contains("<size=0>")) { name = name.Substring(0, name.IndexOf("<size=0>")).Trim(); }
+            return name;
+        }
+
+        /// <summary>
         /// Method that performs actual checks for stat messages
         /// </summary>
         private static void StatMessagingCheck()
@@ -248,13 +271,15 @@ namespace LordAshes
                     {
                         if (data.ContainsKey(asset.Creature.CreatureId))
                         {
-                            Debug.Log("Restoring previous data for Creature '"+asset.Creature.Name+"' ("+asset.Creature.CreatureId+"). Probably lost due to a character rename.");
+                            Debug.Log("Restoring previous data for Creature '"+GetCreatureName(asset)+"' ("+asset.Creature.CreatureId+"). Probably lost due to a character rename.");
+                            data[asset.Creature.CreatureId] = GetCreatureName(asset) + data[asset.Creature.CreatureId].Substring(data[asset.Creature.CreatureId].IndexOf("<size=0>"));
                             CreatureManager.SetCreatureName(asset.Creature.CreatureId, data[asset.Creature.CreatureId]);
+                            Debug.Log("Creature '" + GetCreatureName(asset) + "' is now '" + data[asset.Creature.CreatureId] + "'");
                             creatureName = data[asset.Creature.CreatureId];
                         }
                         else
                         {
-                            Debug.Log("Creating new data block for Creature '" + asset.Creature.Name + "' (" + asset.Creature.CreatureId + "). This is probably a new asset.");
+                            Debug.Log("Creating new data block for Creature '" + GetCreatureName(asset) + "' (" + asset.Creature.CreatureId + "). This is probably a new asset.");
                             CreatureManager.SetCreatureName(asset.Creature.CreatureId, creatureName + " <size=0>{}");
                             creatureName = creatureName + " <size=0>{}";
                         }

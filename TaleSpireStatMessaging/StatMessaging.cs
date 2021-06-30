@@ -1,9 +1,11 @@
 ﻿using BepInEx;
+using BepInEx.Configuration;
 using Newtonsoft.Json;
 using UnityEngine;
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace LordAshes
 {
@@ -13,7 +15,7 @@ namespace LordAshes
         // Plugin info
         public const string Name = "Stat Messaging Plug-In";
         public const string Guid = "org.lordashes.plugins.statmessaging";
-        public const string Version = "1.2.1.0";
+        public const string Version = "1.3.0.0";
 
         // Prevent multiple sources from modifying data at once
         private static object exclusionLock = new object();
@@ -23,6 +25,10 @@ namespace LordAshes
 
         // Holds callback subscriptions for message distribution
         private static Dictionary<System.Guid, Subscription> subscriptions = new Dictionary<Guid, Subscription>();
+
+        // Configuration for diagnostic mode
+        private bool diagnosticMode = false;
+        private ConfigEntry<KeyboardShortcut> triggerDebugMode;
 
         /// <summary>
         /// Class for holding callback subscriptions
@@ -66,6 +72,9 @@ namespace LordAshes
         /// </summary>
         public void Awake()
         {
+            // Read diagnostic toggle configuration
+            triggerDebugMode = Config.Bind("Hotkeys", "Toggle Diagnostic Mode", new KeyboardShortcut(KeyCode.Greater, KeyCode.LeftControl));
+
             Debug.Log("Stat Messaging Plugin now active. Automatic message checks will being when the board loads.");
             BoardSessionManager.OnStateChange += (s) =>
             {
@@ -89,6 +98,28 @@ namespace LordAshes
         public void Update()
         {
             if (ready) { StatMessagingCheck(); }
+
+            if(StrictKeyCheck(triggerDebugMode.Value))
+            {
+                diagnosticMode = !diagnosticMode;
+            }
+        }
+
+        /// <summary>
+        /// Method to display the diagnostic information when diagnostic mode is on
+        /// </summary>
+        public void OnGUI()
+        {
+            if(diagnosticMode)
+            {
+                CreatureBoardAsset asset;
+                CreaturePresenter.TryGetAsset(LocalClient.SelectedCreatureId, out asset);
+                if (asset != null)
+                {
+                    GUIStyle gs = new GUIStyle() { wordWrap = true };
+                    GUI.Label(new Rect(10, 30, 1900, 80), "Debug: "+asset.Creature.Name, gs);
+                }
+            }
         }
 
         /// <summary>
@@ -358,6 +389,21 @@ namespace LordAshes
 
             // Indicated that next check is allowed
             checkInProgress = false;
+        }
+
+        /// <summary>
+        /// Method to properly evaluate shortcut keys. 
+        /// </summary>
+        /// <param name="check"></param>
+        /// <returns></returns>
+        public bool StrictKeyCheck(KeyboardShortcut check)
+        {
+            if (!check.IsUp()) { return false; }
+            foreach (KeyCode modifier in new KeyCode[] { KeyCode.LeftAlt, KeyCode.RightAlt, KeyCode.LeftControl, KeyCode.RightControl, KeyCode.LeftShift, KeyCode.RightShift })
+            {
+                if (Input.GetKey(modifier) != check.Modifiers.Contains(modifier)) { return false; }
+            }
+            return true;
         }
     }
 }

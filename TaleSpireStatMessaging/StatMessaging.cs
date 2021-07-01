@@ -15,7 +15,7 @@ namespace LordAshes
         // Plugin info
         public const string Name = "Stat Messaging Plug-In";
         public const string Guid = "org.lordashes.plugins.statmessaging";
-        public const string Version = "1.4.0.0";
+        public const string Version = "1.4.1.0";
 
         // Prevent multiple sources from modifying data at once
         private static object exclusionLock = new object();
@@ -439,8 +439,7 @@ namespace LordAshes
         /// <returns></returns>
         private static string SafeGuard(string val)
         {
-            // Escape JSON special characters to avoid breaking the JSON structure
-            return JsonConvert.ToString(val);
+            return val.Replace("\"", "'");
         }
     }
 }

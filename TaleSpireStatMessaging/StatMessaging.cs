@@ -15,7 +15,7 @@ namespace LordAshes
         // Plugin info
         public const string Name = "Stat Messaging Plug-In";
         public const string Guid = "org.lordashes.plugins.statmessaging";
-        public const string Version = "1.3.0.0";
+        public const string Version = "1.4.0.0";
 
         // Prevent multiple sources from modifying data at once
         private static object exclusionLock = new object();
@@ -29,6 +29,8 @@ namespace LordAshes
         // Configuration for diagnostic mode
         private bool diagnosticMode = false;
         private ConfigEntry<KeyboardShortcut> triggerDebugMode;
+        private ConfigEntry<KeyboardShortcut> triggerDebugDump;
+        private ConfigEntry<KeyboardShortcut> triggerReset;
 
         /// <summary>
         /// Class for holding callback subscriptions
@@ -73,8 +75,11 @@ namespace LordAshes
         public void Awake()
         {
             // Read diagnostic toggle configuration
-            triggerDebugMode = Config.Bind("Hotkeys", "Toggle Diagnostic Mode", new KeyboardShortcut(KeyCode.Greater, KeyCode.LeftControl));
+            triggerDebugMode = Config.Bind("Hotkeys", "Toggle Diagnostic Mode", new KeyboardShortcut(KeyCode.Period, KeyCode.LeftControl));
+            triggerDebugDump = Config.Bind("Hotkeys", "Dump Selected Mini Message Values", new KeyboardShortcut(KeyCode.Comma, KeyCode.LeftControl));
+            triggerReset = Config.Bind("Hotkeys", "Reset Mini Messages", new KeyboardShortcut(KeyCode.R, KeyCode.LeftControl));
 
+            // Subscribe to board changes
             Debug.Log("Stat Messaging Plugin now active. Automatic message checks will being when the board loads.");
             BoardSessionManager.OnStateChange += (s) =>
             {
@@ -101,7 +106,25 @@ namespace LordAshes
 
             if(StrictKeyCheck(triggerDebugMode.Value))
             {
+                // Toggle diagnostic display
                 diagnosticMode = !diagnosticMode;
+            }
+            else if (StrictKeyCheck(triggerDebugDump.Value))
+            {
+                // Trigger diagnostic dump
+                CreatureBoardAsset asset;
+                CreaturePresenter.TryGetAsset(LocalClient.SelectedCreatureId, out asset);
+                Debug.Log("Stat Message Dump For Creature " + asset.Creature.CreatureId);
+                Debug.Log(asset.Creature.Name);
+            }
+            else if (StrictKeyCheck(triggerReset.Value))
+            {
+                // Trigger Stat Message reset
+                CreatureBoardAsset asset;
+                CreaturePresenter.TryGetAsset(LocalClient.SelectedCreatureId, out asset);
+                CreatureManager.SetCreatureName(asset.Creature.CreatureId, GetCreatureName(asset));
+                if (data.ContainsKey(asset.Creature.CreatureId)) { data.Remove(asset.Creature.CreatureId); }
+                SystemMessage.DisplayInfoText("Stat Messages For Creature '" + GetCreatureName(asset) + "' Reset");
             }
         }
 
@@ -172,6 +195,9 @@ namespace LordAshes
             // Minimize race conditions
             lock (exclusionLock)
             {
+                // Safeguard key and value
+                key = SafeGuard(key);
+                value = SafeGuard(value);
                 // Get access to the corresponding asset
                 CreatureBoardAsset asset = null;
                 CreaturePresenter.TryGetAsset(cid, out asset);
@@ -404,6 +430,17 @@ namespace LordAshes
                 if (Input.GetKey(modifier) != check.Modifiers.Contains(modifier)) { return false; }
             }
             return true;
+        }
+
+        /// <summary>
+        /// Replace characters that would break the JSON structure
+        /// </summary>
+        /// <param name="val"></param>
+        /// <returns></returns>
+        private static string SafeGuard(string val)
+        {
+            // Escape JSON special characters to avoid breaking the JSON structure
+            return JsonConvert.ToString(val);
         }
     }
 }

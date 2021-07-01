@@ -8,17 +8,27 @@ using the same synchronization technique.
 ## Change Log
 
 1.4.0: Added mini reset which allows a mini's Stat Messages to be reset if the messages are corrupt
+
 1.4.0: Added diagnostic dump which writes the current selected mini's Stat Messages to the console
+
 1.3.0: Added disgnostic mode toggle which displays Stat Messaging content at the top of the screen
+
 1.2.1: Fixed bug with renaming mini
+
 1.2.0: Implemented subscription implementation fixing the bug that one parent plugin consumed all changes.
        Plugins should now use the Subscribe() method and don't need to call the Check() method anymore but
 	   legacy support has been added to support the previous Check() architecture while fixing the bug.
+	   
 1.2.0: Removed a log of diagnostic infomation put into the log
+
 1.1.2: Bug fix to ReadInfo
+
 1.1.1: Added ReadInfo to be able to read the last value for a given key
+
 1.1.0: Initial contents are processed as changes
+
 1.1.0: Reset added for situations like board changes where old data should be purged
+
 1.0.0: Initial release
 
 ## Install

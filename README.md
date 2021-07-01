@@ -7,6 +7,8 @@ using the same synchronization technique.
 
 ## Change Log
 
+1.4.1: Fixed character prevention bug
+
 1.4.0: Added mini reset which allows a mini's Stat Messages to be reset if the messages are corrupt
 
 1.4.0: Added diagnostic dump which writes the current selected mini's Stat Messages to the console

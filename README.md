@@ -7,7 +7,15 @@ using the same synchronization technique.
 
 ## Change Log
 
-1.1.2: Fixed bug with ReadInfo
+1.4.0: Added mini reset which allows a mini's Stat Messages to be reset if the messages are corrupt
+1.4.0: Added diagnostic dump which writes the current selected mini's Stat Messages to the console
+1.3.0: Added disgnostic mode toggle which displays Stat Messaging content at the top of the screen
+1.2.1: Fixed bug with renaming mini
+1.2.0: Implemented subscription implementation fixing the bug that one parent plugin consumed all changes.
+       Plugins should now use the Subscribe() method and don't need to call the Check() method anymore but
+	   legacy support has been added to support the previous Check() architecture while fixing the bug.
+1.2.0: Removed a log of diagnostic infomation put into the log
+1.1.2: Bug fix to ReadInfo
 1.1.1: Added ReadInfo to be able to read the last value for a given key
 1.1.0: Initial contents are processed as changes
 1.1.0: Reset added for situations like board changes where old data should be purged
@@ -22,13 +30,18 @@ Install using R2ModMan or similar. The plugin is then available for any parent p
 To check for Stat Messaging changes (i.e. messages), issue the following command:
 
 ```C#
-StatMessaging.Check(requestHandler.Request);
+StatMessaging.Subscribe(*key*, *callback*);
 ```
 
-This is a static method so you don't need to initialize any class to do it. Normally this check is
-placed in the *Update()* method so that changes are detected each update cycle. The method has its
-own flow control so that if a new check is done before the previous one finished it will skip the
-check (thus preventing a potential overflow).
+This is a static method so you don't need to initialize any class to do it. This method triggers
+the specified callback when the specified key changes. Multiple subscriptions to the same key can
+be made (typically by different plugins) without one consuming the data changes. An asteriks (*) can be
+used in place of the key to subscribe to all messages but this is typically not needed since a plugin
+will be written for specific key changes. Subscribing to specific keys means the parent plugin will
+only get changes for that key which typically means only changes that the plugin is interested in.
+Using the wild card asteriks means the parent plugin gets all messages and needs to sort through them
+in order to determine which are relevant. The subscribe method returns a Guid which can be used with
+the Unscubscribe command to remove subscriptions. 
 
 Messages are sent using a key/value pair system. Typically a plugin will set one or more keys and
 will monitor for those key changes. To set a key with a value, issue the following command:
@@ -74,3 +87,22 @@ When a character is renamed using the GM Options, the trailing information (not 
 rename) is likely to be erased. The Stat Messaging plugin has compensation for this and will
 detect such occurances and re-link the last known stat block information with the renamed
 character.
+
+## Diagnostic Mode
+
+When using Stat Messaging, you can toggle diagnostic mode on and off by pressing the coresponding
+keyboard shortcut (default Left Control + Period). When diagnostic mode is on, the full name
+and Stat Messaging keys will be displayed at the top of the screen. Diagnostic mode can be used
+when testing parent plugin to verify that the Stat Messaging keys were properly updated.
+
+## Diagnostic Dump
+
+When using Stat Messaging, you can dump the current selected mini's Stat Messages (keys and values)
+to the BepInEx console (and thus log)by using the coresponding keyboard shortcut (default
+Left Control + Comma).
+
+## Mini Reset
+
+If a mini's Stat Messages become corrupt for some reason (usually a plugin using invalid character
+with Stat Messaging) the mini's Stat Messages can be erased using the mini reset function triggered
+manually by the coresponding keyboard shortcut (default Left Control + R).

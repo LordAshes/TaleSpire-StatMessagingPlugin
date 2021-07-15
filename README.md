@@ -7,6 +7,8 @@ using the same synchronization technique.
 
 ## Change Log
 
+1.5.0: Addressed fix for TS Build 7035408
+
 1.4.1: Fixed character prevention bug
 
 1.4.0: Added mini reset which allows a mini's Stat Messages to be reset if the messages are corrupt

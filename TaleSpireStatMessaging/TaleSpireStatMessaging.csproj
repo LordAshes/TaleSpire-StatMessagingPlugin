@@ -39,26 +39,36 @@
     <Reference Include="BepInEx">
       <HintPath>D:\moddingtalespire-2.3.0\bepinexbin\BepInEx\core\BepInEx.dll</HintPath>
     </Reference>
-    <Reference Include="Bouncyrock.BouncePackage.Runtime">
-      <HintPath>..\..\TaleSpireChatRollerPlugin\TaleSpireChatRollerPlugin\bin\Debug\Bouncyrock.BouncePackage.Runtime.dll</HintPath>
+    <Reference Include="Bouncyrock.BouncePackage.Runtime, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>D:\Steam\steamapps\common\TaleSpire\TaleSpire_Data\Managed\Bouncyrock.BouncePackage.Runtime.dll</HintPath>
     </Reference>
-    <Reference Include="Bouncyrock.BouncePackage.TaleSpire.Runtime">
-      <HintPath>..\..\TaleSpireChatRollerPlugin\TaleSpireChatRollerPlugin\bin\Debug\Bouncyrock.BouncePackage.TaleSpire.Runtime.dll</HintPath>
+    <Reference Include="Bouncyrock.BouncePackage.TaleSpire.Runtime, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>D:\Steam\steamapps\common\TaleSpire\TaleSpire_Data\Managed\Bouncyrock.BouncePackage.TaleSpire.Runtime.dll</HintPath>
     </Reference>
-    <Reference Include="Bouncyrock.TaleSpire.3rdParty.Runtime">
-      <HintPath>..\..\TaleSpireChatRollerPlugin\TaleSpireChatRollerPlugin\bin\Debug\Bouncyrock.TaleSpire.3rdParty.Runtime.dll</HintPath>
+    <Reference Include="Bouncyrock.TaleSpire.3rdParty.Runtime, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>D:\Steam\steamapps\common\TaleSpire\TaleSpire_Data\Managed\Bouncyrock.TaleSpire.3rdParty.Runtime.dll</HintPath>
     </Reference>
-    <Reference Include="Bouncyrock.TaleSpire.AssetManagement">
+    <Reference Include="Bouncyrock.TaleSpire.AssetManagement, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
       <HintPath>D:\Steam\steamapps\common\TaleSpire\TaleSpire_Data\Managed\Bouncyrock.TaleSpire.AssetManagement.dll</HintPath>
     </Reference>
-    <Reference Include="Bouncyrock.TaleSpire.BounceTools.Runtime">
-      <HintPath>..\..\TaleSpireChatRollerPlugin\TaleSpireChatRollerPlugin\bin\Debug\Bouncyrock.TaleSpire.BounceTools.Runtime.dll</HintPath>
+    <Reference Include="Bouncyrock.TaleSpire.BounceTools.Runtime, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>D:\Steam\steamapps\common\TaleSpire\TaleSpire_Data\Managed\Bouncyrock.TaleSpire.BounceTools.Runtime.dll</HintPath>
     </Reference>
-    <Reference Include="Bouncyrock.TaleSpire.DataModel.Runtime">
-      <HintPath>..\..\TaleSpireChatRollerPlugin\TaleSpireChatRollerPlugin\bin\Debug\Bouncyrock.TaleSpire.DataModel.Runtime.dll</HintPath>
+    <Reference Include="Bouncyrock.TaleSpire.DataModel.Runtime, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>D:\Steam\steamapps\common\TaleSpire\TaleSpire_Data\Managed\Bouncyrock.TaleSpire.DataModel.Runtime.dll</HintPath>
     </Reference>
-    <Reference Include="Bouncyrock.TaleSpire.Runtime">
-      <HintPath>..\..\TaleSpireChatRollerPlugin\TaleSpireChatRollerPlugin\bin\Debug\Bouncyrock.TaleSpire.Runtime.dll</HintPath>
+    <Reference Include="Bouncyrock.TaleSpire.Runtime, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>D:\Steam\steamapps\common\TaleSpire\TaleSpire_Data\Managed\Bouncyrock.TaleSpire.Runtime.dll</HintPath>
+    </Reference>
+    <Reference Include="FileAccessPlugin">
+      <HintPath>..\..\..\..\AppData\Roaming\r2modmanPlus-local\TaleSpire\profiles\Plugins\BepInEx\plugins\LordAshes-FileAccessPlugin\FileAccessPlugin.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.13.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
@@ -76,6 +86,14 @@
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>D:\Steam\steamapps\common\TaleSpire\TaleSpire_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>D:\Steam\steamapps\common\TaleSpire\TaleSpire_Data\Managed\UnityEngine.IMGUIModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>D:\Steam\steamapps\common\TaleSpire\TaleSpire_Data\Managed\UnityEngine.InputLegacyModule.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>

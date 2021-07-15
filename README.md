@@ -7,7 +7,9 @@ using the same synchronization technique.
 
 ## Change Log
 
-1.5.0: Addressed fix for TS Build 7035408
+1.6.0: Addressed fix for TS Build 7035408
+
+1.5.0: Modified to queue based solution so that processing is done on the main thread
 
 1.4.1: Fixed character prevention bug
 

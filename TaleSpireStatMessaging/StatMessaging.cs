@@ -15,7 +15,7 @@ namespace LordAshes
         // Plugin info
         public const string Name = "Stat Messaging Plug-In";
         public const string Guid = "org.lordashes.plugins.statmessaging";
-        public const string Version = "1.5.0.0";
+        public const string Version = "1.6.0.0";
 
         // Prevent multiple sources from modifying data at once
         private static object exclusionLock = new object();

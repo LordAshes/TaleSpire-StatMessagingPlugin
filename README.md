@@ -7,6 +7,10 @@ using the same synchronization technique.
 
 ## Change Log
 
+1.6.1: Improved board reload detection
+
+1.6.1: Added Reset(key) and made the mass Reset() method obsolete
+
 1.6.0: Addressed fix for TS Build 7035408
 
 1.5.0: Modified to queue based solution so that processing is done on the main thread

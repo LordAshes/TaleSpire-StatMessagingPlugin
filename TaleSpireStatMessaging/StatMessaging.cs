@@ -15,7 +15,7 @@ namespace LordAshes
         // Plugin info
         public const string Name = "Stat Messaging Plug-In";
         public const string Guid = "org.lordashes.plugins.statmessaging";
-        public const string Version = "1.6.1.0";
+        public const string Version = "1.6.2.0";
 
         // Prevent multiple sources from modifying data at once
         private static object exclusionLock = new object();
@@ -300,11 +300,33 @@ namespace LordAshes
             {
                 CreatureBoardAsset asset = null;
                 CreaturePresenter.TryGetAsset(cid, out asset);
-                string json = data[cid].Substring(data[cid].IndexOf("<size=0>") + "<size=0>".Length);
-                Dictionary<string, string> info = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
-                if (info.ContainsKey(key)) { info.Remove(key); }
-                data[cid] = GetCreatureName(asset) + "<size=0>" + JsonConvert.SerializeObject(info);
-                Debug.Log("Creature " + cid + " StatBlock is " + data[cid]);
+                if (asset != null)
+                {
+                    if (data.ContainsKey(cid))
+                    {
+                        if (data[cid].Contains("<size=0>"))
+                        {
+                            string json = data[cid].Substring(data[cid].IndexOf("<size=0>") + "<size=0>".Length);
+                            Dictionary<string, string> info = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
+                            if (info.ContainsKey(key)) { info.Remove(key); }
+                            data[cid] = GetCreatureName(asset) + "<size=0>" + JsonConvert.SerializeObject(info);
+                            Debug.Log("Creature " + cid + " StatBlock is " + data[cid]);
+                        }
+                        else
+                        {
+                            Debug.Log("Creature " + cid + " Had No StatBlock...");
+                        }
+                    }
+                    else
+                    {
+                        Debug.Log("Creature " + cid + " Had Data But Doesn't Anymore...");
+                    }
+                }
+                else
+                {
+                    Debug.Log("Creature " + cid + " Had Data But Does Not Exist. Removing Data...");
+                    data.Remove(cid);
+                }
             }
         }
 

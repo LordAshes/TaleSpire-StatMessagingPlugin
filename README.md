@@ -5,41 +5,36 @@ If you plan to use the Creature Name synchronization for distributing messages t
 please use this plugin because it will ensure that there is no conflict between other plugins
 using the same synchronization technique.
 
+Special thanks to @AlbrechtWM for his hard work in finding what TS Build 7035408 broke and
+working with me to quickly find a solution. @AlbrechtWM your help is greatly appreciated.
+
 ## Change Log
 
+```
+2.0.0: Changed board load detection to fix issue after BR update
+1.6.3: Missing DLL put into package
+1.6.2: Fix for fringe cases in Reset(key) method
 1.6.1: Improved board reload detection
-
-1.6.1: Added Reset(key) and made the mass Reset() method obsolete
-
+1.6.1: Added Reset(key) in lieu of the, now obsolete, Reset() which allows resets to affect only
+       the related plugin as opposed to resetting the data for all plugins
 1.6.0: Addressed fix for TS Build 7035408
-
-1.5.0: Modified to queue based solution so that processing is done on the main thread
-
-1.4.1: Fixed character prevention bug
-
+1.5.0: Uses a Stat Messaging queue to process requests on the main thread. Improves avoidance of
+       overwriting of requests with old data when multiple requests affect the same mini.
+1.4.1: Fix issue with character restriction
 1.4.0: Added mini reset which allows a mini's Stat Messages to be reset if the messages are corrupt
-
 1.4.0: Added diagnostic dump which writes the current selected mini's Stat Messages to the console
-
 1.3.0: Added disgnostic mode toggle which displays Stat Messaging content at the top of the screen
-
 1.2.1: Fixed bug with renaming mini
-
 1.2.0: Implemented subscription implementation fixing the bug that one parent plugin consumed all changes.
        Plugins should now use the Subscribe() method and don't need to call the Check() method anymore but
 	   legacy support has been added to support the previous Check() architecture while fixing the bug.
-	   
 1.2.0: Removed a log of diagnostic infomation put into the log
-
 1.1.2: Bug fix to ReadInfo
-
 1.1.1: Added ReadInfo to be able to read the last value for a given key
-
 1.1.0: Initial contents are processed as changes
-
 1.1.0: Reset added for situations like board changes where old data should be purged
-
 1.0.0: Initial release
+```
 
 ## Install
 

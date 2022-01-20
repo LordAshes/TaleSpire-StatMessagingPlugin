@@ -11,6 +11,7 @@ working with me to quickly find a solution. @AlbrechtWM your help is greatly app
 ## Change Log
 
 ```
+2.0.2: Bug fixes
 2.0.0: Changed board load detection to fix issue after BR update
 1.6.3: Missing DLL put into package
 1.6.2: Fix for fringe cases in Reset(key) method

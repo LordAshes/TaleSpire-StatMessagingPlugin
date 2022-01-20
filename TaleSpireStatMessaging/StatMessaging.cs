@@ -15,7 +15,7 @@ namespace LordAshes
         // Plugin info
         public const string Name = "Stat Messaging Plug-In";
         public const string Guid = "org.lordashes.plugins.statmessaging";
-        public const string Version = "2.0.0.0";
+        public const string Version = "2.0.2.0";
 
         // Prevent multiple sources from modifying data at once
         private static object exclusionLock = new object();
@@ -27,7 +27,7 @@ namespace LordAshes
         private static Dictionary<System.Guid, Subscription> subscriptions = new Dictionary<Guid, Subscription>();
 
         // Configuration for diagnostic mode
-        private bool diagnosticMode = false;
+        private static bool diagnosticMode = false;
         private ConfigEntry<KeyboardShortcut> triggerDebugMode;
         private ConfigEntry<KeyboardShortcut> triggerDebugDump;
         private ConfigEntry<KeyboardShortcut> triggerReset;
@@ -107,7 +107,7 @@ namespace LordAshes
                 }
                 else
                 {
-                    StatMessaging.Reset();
+                    data.Clear();
                     Debug.Log("Stat Messaging Plugin: Stopped looking for messages.");
                 }
             }
@@ -125,21 +125,35 @@ namespace LordAshes
                 CreatureBoardAsset asset;
                 CreaturePresenter.TryGetAsset(LocalClient.SelectedCreatureId, out asset);
                 Debug.Log("Stat Messaging Plugin: Stat Message Dump For Creature " + asset.Creature.CreatureId);
-                Debug.Log(asset.Creature.Name);
+                Debug.Log("Stat Messaging Plugin: "+asset.Creature.Name);
             }
             else if (StrictKeyCheck(triggerReset.Value))
             {
                 // Trigger Stat Message reset
-                CreatureBoardAsset asset;
-                CreaturePresenter.TryGetAsset(LocalClient.SelectedCreatureId, out asset);
-                CreatureManager.SetCreatureName(asset.Creature.CreatureId, GetCreatureName(asset));
-                if (data.ContainsKey(asset.Creature.CreatureId)) { data.Remove(asset.Creature.CreatureId); }
-                SystemMessage.DisplayInfoText("Stat Messages For Creature '" + GetCreatureName(asset) + "' Reset");
+	            if (LocalClient.SelectedCreatureId != null)
+                {
+                    // Reset selected mini													   						  
+					CreatureBoardAsset asset;
+					CreaturePresenter.TryGetAsset(LocalClient.SelectedCreatureId, out asset);
+					CreatureManager.SetCreatureName(asset.Creature.CreatureId, GetCreatureName(asset));
+					if (data.ContainsKey(asset.Creature.CreatureId)) { data.Remove(asset.Creature.CreatureId); }
+					SystemMessage.DisplayInfoText("Stat Messages For Creature '" + GetCreatureName(asset) + "' Reset");
+                }
+                else
+                {
+                    // Reset all minis
+                    SystemMessage.DisplayInfoText("Stat Messages For All Creatures Reset");
+                    foreach (CreatureBoardAsset asset in CreaturePresenter.AllCreatureAssets)
+                    {
+                        CreatureManager.SetCreatureName(asset.Creature.CreatureId, GetCreatureName(asset));
+                        if (data.ContainsKey(asset.Creature.CreatureId)) { data.Remove(asset.Creature.CreatureId); }
+                    }
+                }				 
             }
 
             if (operationQueue.Count > 0)
             {
-                //Debug.Log("OPERATION COUNT: " + operationQueue.Count);
+                if(diagnosticMode) { Debug.Log("Stat Messaging Plugin: Operation Queue Count: " + operationQueue.Count); }
                 Change operation = operationQueue.Dequeue();
                 CreatureBoardAsset asset;
                 CreaturePresenter.TryGetAsset(operation.cid, out asset);
@@ -152,16 +166,16 @@ namespace LordAshes
                         case ChangeType.added:
                         case ChangeType.modified:
                             // Modify or add the specified value under the specified key
-                            //Debug.Log("On '" + operation.cid + "' process '" + operation.action + "' request for key " + operation.key + " to " + operation.value + " from " + operation.previous);
+                            if(diagnosticMode) { Debug.Log("Stat Messaging Plugin: Queue Processing: On '" + operation.cid + "' process '" + operation.action + "' request for key " + operation.key + " to " + operation.value + " from " + operation.previous); }
                             if (info.ContainsKey(operation.key)) { info[operation.key] = operation.value; } else { info.Add(operation.key, operation.value); }
                             break;
                         case ChangeType.removed:
                             // Remove the key if it exists
-                            //Debug.Log("On '" + operation.cid + "' process '" + operation.action + "' request for key " + operation.key);
+                            if(diagnosticMode) { Debug.Log("Stat Messaging Plugin: Queue Processing: On '" + operation.cid + "' process '" + operation.action + "' request for key " + operation.key); }
                             if (info.ContainsKey(operation.key)) { info.Remove(operation.key); }
                             break;
                     }
-                    //Debug.Log("Setting Creature '" + operation.cid + "' name to: " + GetCreatureName(asset.Creature) + "<size=0>" + JsonConvert.SerializeObject(info));
+                    if(diagnosticMode) { Debug.Log("Stat Messaging Plugin: Queue Processing: Setting Creature '" + operation.cid + "' name to: " + GetCreatureName(asset.Creature) + "<size=0>" + JsonConvert.SerializeObject(info)); }
                     CreatureManager.SetCreatureName(operation.cid, GetCreatureName(asset.Creature) + "<size=0>" + JsonConvert.SerializeObject(info));
                 }
             }
@@ -208,9 +222,16 @@ namespace LordAshes
         /// <returns>Guid associated with the subscription which can be used to unsubscribe</returns>
         public static System.Guid Subscribe(string key, Action<Change[]> dataChangeCallback)
         {
-            System.Guid guid = System.Guid.NewGuid();
-            subscriptions.Add(guid, new Subscription() { key = key, callback = dataChangeCallback });
-            return guid;
+            try
+            {
+                System.Guid guid = System.Guid.NewGuid();
+                subscriptions.Add(guid, new Subscription() { key = key, callback = dataChangeCallback });
+                return guid;
+            }
+            catch(Exception)
+            {
+                return System.Guid.Empty;
+            }
         }
 
         /// <summary>
@@ -220,7 +241,15 @@ namespace LordAshes
         /// <param name="subscriptionId">Guid of the subscription to be removed (provided by the Subscribe method)</param>
         public static void Unsubscribe(System.Guid subscriptionId)
         {
-            if (subscriptions.ContainsKey(subscriptionId)) { subscriptions.Remove(subscriptionId); }
+            if (subscriptions.ContainsKey(subscriptionId)) 
+            {
+                Debug.Log("Stat Messaging Plugin: Removing Subscription " + subscriptions[subscriptionId].key + " (" + subscriptionId + ")");
+                subscriptions.Remove(subscriptionId); 
+            }
+            else
+            {
+                Debug.Log("Stat Messaging Plugin: No Subscriptions To Remove");
+            }
         }
 
         /// <summary>
@@ -239,8 +268,7 @@ namespace LordAshes
                 value = SafeGuard(value);
                 // Queue operation
                 Change tempChange = new Change() { cid = cid, key = key, value = value, action = ChangeType.modified, previous = null };
-                if (!operationQueue.Contains(tempChange))
-                    operationQueue.Enqueue(tempChange);
+                if (!operationQueue.Contains(tempChange)) { operationQueue.Enqueue(tempChange); }
             }
         }
 
@@ -289,10 +317,53 @@ namespace LordAshes
         /// Method used to reset the data dictionary and thus reprocess all Stat Message changes.
         /// Typically used on a new board load to dump old board data and also to re-process it if the board is reloaded.
         /// </summary>
+        [Obsolete]
         public static void Reset()
         {
-            Debug.Log("Stat Messaging Plugin: Data dictionary reset");
+            Debug.Log("Stat Messaging Plugin: Data dictionary reset is obsolete. Use Reset(key) instead.");
             data.Clear();
+        }
+
+        /// <summary>
+        /// Method used to reset the data dictionary and thus reprocess all Stat Message changes.
+        /// Typically used on a new board load to dump old board data and also to re-process it if the board is reloaded.
+        /// </summary>
+        public static void Reset(string key)
+        {
+            Debug.Log("Stat Messaging Plugin: Removing key '" + key + "' from all assets");
+            CreatureGuid[] cids = data.Keys.ToArray();
+            foreach (CreatureGuid cid in cids)
+            {
+                CreatureBoardAsset asset = null;
+                CreaturePresenter.TryGetAsset(cid, out asset);
+                if (asset != null)
+                {
+                    if (data.ContainsKey(cid))
+                    {
+                        if (data[cid].Contains("<size=0>"))
+                        {
+                            string json = data[cid].Substring(data[cid].IndexOf("<size=0>") + "<size=0>".Length);
+                            Dictionary<string, string> info = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
+                            if (info.ContainsKey(key)) { info.Remove(key); }
+                            data[cid] = GetCreatureName(asset) + "<size=0>" + JsonConvert.SerializeObject(info);
+                            Debug.Log("Stat Messaging Plugin: Creature " + cid + " StatBlock is " + data[cid]);
+                        }
+                        else
+                        {
+                            Debug.Log("Stat Messaging Plugin: Creature " + cid + " Had No StatBlock...");
+                        }
+                    }
+                    else
+                    {
+                        Debug.Log("Stat Messaging Plugin: Creature " + cid + " Had Data But Doesn't Anymore...");
+                    }
+                }
+                else
+                {
+                    Debug.Log("Stat Messaging Plugin: Creature " + cid + " Had Data But Does Not Exist. Removing Data...");
+                    data.Remove(cid);
+                }
+            }
         }
 
         /// <summary>
@@ -377,7 +448,7 @@ namespace LordAshes
                             Debug.Log("Stat Messaging Plugin: Restoring previous data for Creature '" + GetCreatureName(asset) + "' (" + asset.Creature.CreatureId + "). Probably lost due to a character rename.");
                             data[asset.Creature.CreatureId] = GetCreatureName(asset) + data[asset.Creature.CreatureId].Substring(data[asset.Creature.CreatureId].IndexOf("<size=0>"));
                             CreatureManager.SetCreatureName(asset.Creature.CreatureId, data[asset.Creature.CreatureId]);
-                            Debug.Log("Creature '" + GetCreatureName(asset) + "' is now '" + data[asset.Creature.CreatureId] + "'");
+                            Debug.Log("Stat Messaging Plugin: Creature '" + GetCreatureName(asset) + "' is now '" + data[asset.Creature.CreatureId] + "'");
                             creatureName = data[asset.Creature.CreatureId];
                         }
                         else
@@ -391,7 +462,7 @@ namespace LordAshes
                     // Ensure that creature has a entry in the data dictionary
                     if (!data.ContainsKey(asset.Creature.CreatureId))
                     {
-                        data.Add(asset.Creature.CreatureId, creatureName.Substring(0, creatureName.IndexOf("<size=0>")) + "<size=0>{}");
+                        data.Add(asset.Creature.CreatureId, GetCreatureName(asset.Creature) + "<size=0>{}");
                     }
 
                     // Check to see if the creature name has changed
@@ -445,6 +516,7 @@ namespace LordAshes
                                 // Check each subscription
                                 foreach (Subscription subscription in subscriptions.Values)
                                 {
+									if (diagnosticMode) { Debug.Log("Stat Messaging Plugin: Subscription: "+subscription.key+", Change: "+change.key+", Match: "+ (subscription.key == change.key)); }																																		   
                                     // Trigger a callback for anyone subscription matching the key
                                     if (subscription.key == change.key)
                                     {
@@ -455,19 +527,42 @@ namespace LordAshes
                             // Check for legacy wild card subscriptions
                             foreach (Subscription subscription in subscriptions.Values)
                             {
-                                if (subscription.key == "*") { subscription.callback(changes.ToArray()); }
+                                if (subscription.key == "*") 
+								{ 
+									if (diagnosticMode) { Debug.Log("Stat Messaging Plugin: Subscription: *"); }
+									subscription.callback(changes.ToArray()); 
+								}
                             }
                         }
                     }
                 }
             }
-            catch (Exception x) { Debug.LogWarning(x); }
+            catch (Exception x) 
+			{ 
+				Debug.Log("Stat Messaging Plugin: Exception");
+				Debug.LogException(x); 
+			}
 
             // Indicated that next check is allowed
             checkInProgress = false;
         }
 
         /// <summary>
+        /// Method to return the subscriptions for diagnostic purpose
+        /// </summary>
+        /// <returns></returns>
+        public static Dictionary<System.Guid, Subscription> Subscriptions()
+        {
+			if (diagnosticMode) { Debug.Log("Stat Messaging Plugin: Obtaining subscriptions"); }																																		   
+            Dictionary<System.Guid, Subscription> result = new Dictionary<Guid, Subscription>();
+            foreach(KeyValuePair<System.Guid, Subscription> entry in subscriptions)
+            {
+                result.Add(entry.Key, entry.Value);
+            }
+            return result;
+        }										
+		
+		/// <summary>
         /// Method to properly evaluate shortcut keys. 
         /// </summary>
         /// <param name="check"></param>
@@ -498,10 +593,7 @@ namespace LordAshes
         /// <returns></returns>
         private bool IsBoardLoaded()
         {
-            return (CameraController.HasInstance &&
-                    BoardSessionManager.HasInstance &&
-                    BoardSessionManager.HasBoardAndIsInNominalState &&
-                    !BoardSessionManager.IsLoading);
+            return (CameraController.HasInstance && BoardSessionManager.HasInstance && BoardSessionManager.HasBoardAndIsInNominalState && !BoardSessionManager.IsLoading);
         }
     }
 }

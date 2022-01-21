@@ -15,7 +15,7 @@ namespace LordAshes
         // Plugin info
         public const string Name = "Stat Messaging Plug-In";
         public const string Guid = "org.lordashes.plugins.statmessaging";
-        public const string Version = "2.0.2.0";
+        public const string Version = "2.0.3.0";
 
         // Prevent multiple sources from modifying data at once
         private static object exclusionLock = new object();
@@ -263,9 +263,6 @@ namespace LordAshes
             // Minimize race conditions
             lock (exclusionLock)
             {
-                // Safeguard key and value
-                key = SafeGuard(key);
-                value = SafeGuard(value);
                 // Queue operation
                 Change tempChange = new Change() { cid = cid, key = key, value = value, action = ChangeType.modified, previous = null };
                 if (!operationQueue.Contains(tempChange)) { operationQueue.Enqueue(tempChange); }
@@ -575,16 +572,6 @@ namespace LordAshes
                 if (Input.GetKey(modifier) != check.Modifiers.Contains(modifier)) { return false; }
             }
             return true;
-        }
-
-        /// <summary>
-        /// Replace characters that would break the JSON structure
-        /// </summary>
-        /// <param name="val"></param>
-        /// <returns></returns>
-        private static string SafeGuard(string val)
-        {
-            return val.Replace("\"", "'");
         }
 
         /// <summary>

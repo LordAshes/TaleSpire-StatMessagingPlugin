@@ -15,7 +15,7 @@ namespace LordAshes
         // Plugin info
         public const string Name = "Stat Messaging Plug-In";
         public const string Guid = "org.lordashes.plugins.statmessaging";
-        public const string Version = "2.0.3.0";
+        public const string Version = "2.0.4.0";
 
         // Prevent multiple sources from modifying data at once
         private static object exclusionLock = new object();
@@ -158,7 +158,12 @@ namespace LordAshes
                 CreatureBoardAsset asset;
                 CreaturePresenter.TryGetAsset(operation.cid, out asset);
                 string json = asset.Creature.Name.Substring(asset.Creature.Name.IndexOf("<size=0>") + "<size=0>".Length);
-                Dictionary<string, string> info = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
+                Dictionary<string, string> info = null;
+                try { info = JsonConvert.DeserializeObject<Dictionary<string, string>>(json); } catch (Exception)
+                {
+                    Debug.Log("Stat Messaging Plugin: Corrupt Stat Block Detected. Resetting Mini's JSON Block.");
+                    info = new Dictionary<string, string>();
+                }
                 if (asset != null)
                 {
                     switch (operation.action)
@@ -296,7 +301,8 @@ namespace LordAshes
                 {
                     string json = data[cid];
                     json = json.Substring(json.IndexOf("<size=0>") + "<size=0>".Length);
-                    Dictionary<string, string> keys = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
+                    Dictionary<string, string> keys = null;
+                    try { keys = JsonConvert.DeserializeObject<Dictionary<string, string>>(json); } catch (Exception) { keys = new Dictionary<string, string>(); }
                     if (keys.ContainsKey(key))
                     {
                         return keys[key];
@@ -340,7 +346,9 @@ namespace LordAshes
                         if (data[cid].Contains("<size=0>"))
                         {
                             string json = data[cid].Substring(data[cid].IndexOf("<size=0>") + "<size=0>".Length);
-                            Dictionary<string, string> info = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
+
+                            Dictionary<string, string> info = null;
+                            try { info = JsonConvert.DeserializeObject<Dictionary<string, string>>(json); } catch (Exception) { info = new Dictionary<string, string>(); }
                             if (info.ContainsKey(key)) { info.Remove(key); }
                             data[cid] = GetCreatureName(asset) + "<size=0>" + JsonConvert.SerializeObject(info);
                             Debug.Log("Stat Messaging Plugin: Creature " + cid + " StatBlock is " + data[cid]);
@@ -469,8 +477,10 @@ namespace LordAshes
                         string lastJson = data[asset.Creature.CreatureId].Substring(data[asset.Creature.CreatureId].IndexOf("<size=0>") + "<size=0>".Length);
                         string currentJson = creatureName.Substring(creatureName.IndexOf("<size=0>") + "<size=0>".Length);
                         // Compare entries
-                        Dictionary<string, string> last = JsonConvert.DeserializeObject<Dictionary<string, string>>(lastJson);
-                        Dictionary<string, string> current = JsonConvert.DeserializeObject<Dictionary<string, string>>(currentJson);
+                        Dictionary<string, string> last = null;
+                        Dictionary<string, string> current = null;
+                        try { last = JsonConvert.DeserializeObject<Dictionary<string, string>>(lastJson); } catch (Exception) { last = new Dictionary<string, string>(); }
+                        try { current = JsonConvert.DeserializeObject<Dictionary<string, string>>(currentJson); } catch (Exception) { current = new Dictionary<string, string>(); }
                         // Update data dictionary with current info
                         data[asset.Creature.CreatureId] = creatureName;
                         List<Change> changes = new List<Change>();

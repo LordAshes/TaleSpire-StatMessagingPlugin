@@ -6,6 +6,7 @@ using UnityEngine;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 namespace LordAshes
 {
@@ -15,7 +16,7 @@ namespace LordAshes
         // Plugin info
         public const string Name = "Stat Messaging Plug-In";
         public const string Guid = "org.lordashes.plugins.statmessaging";
-        public const string Version = "2.0.4.0";
+        public const string Version = "2.1.0.0";
 
         // Prevent multiple sources from modifying data at once
         private static object exclusionLock = new object();
@@ -31,6 +32,9 @@ namespace LordAshes
         private ConfigEntry<KeyboardShortcut> triggerDebugMode;
         private ConfigEntry<KeyboardShortcut> triggerDebugDump;
         private ConfigEntry<KeyboardShortcut> triggerReset;
+
+        private static Type caller = null;
+        private static MethodInfo callback = null;
 
         /// <summary>
         /// Class for holding callback subscriptions
@@ -74,6 +78,29 @@ namespace LordAshes
             }
         }
 
+        public class ReflectionChange
+        {
+            public string cid { get; set; }
+            public string action { get; set; }
+            public string key { get; set; }
+            public string previous { get; set; }
+            public string value { get; set; }
+
+            public ReflectionChange()
+            {
+
+            }
+
+            public ReflectionChange(Change content)
+            {
+                cid = content.cid.ToString();
+                action = content.action.ToString();
+                key = content.key;
+                previous = content.previous;
+                value = content.value;
+            }
+        }
+
         // Variable to prevent overlapping checks in case the check is taking too long
         private static bool checkInProgress = false;
 
@@ -85,111 +112,132 @@ namespace LordAshes
         /// <summary>
         /// Method triggered when the plugin loads
         /// </summary>
-        public void Awake()
+        void Awake()
         {
+            Debug.Log("Stat Messaging Plugin: " + this.GetType().AssemblyQualifiedName + " is active.");
+
             // Read diagnostic toggle configuration
             triggerDebugMode = Config.Bind("Hotkeys", "Toggle Diagnostic Mode", new KeyboardShortcut(KeyCode.Period, KeyCode.LeftControl));
             triggerDebugDump = Config.Bind("Hotkeys", "Dump Selected Mini Message Values", new KeyboardShortcut(KeyCode.Comma, KeyCode.LeftControl));
             triggerReset = Config.Bind("Hotkeys", "Reset Mini Messages", new KeyboardShortcut(KeyCode.R, KeyCode.LeftControl));
+            diagnosticMode = Config.Bind("Settings", "Additional Disgnostic Information In Logs", false).Value;
         }
 
         /// <summary>
         /// Method triggered periodically
         /// </summary>
-        public void Update()
+        void Update()
         {
-            if(IsBoardLoaded()!=ready)
+            string phase = "";
+            try
             {
-                ready = IsBoardLoaded();
-                if (ready)
+                phase = "Board State Sync";
+                if (IsBoardLoaded() != ready)
                 {
-                    Debug.Log("Stat Messaging Plugin: Started looking for messages.");
-                }
-                else
-                {
-                    data.Clear();
-                    Debug.Log("Stat Messaging Plugin: Stopped looking for messages.");
-                }
-            }
-
-            if (ready) { StatMessagingCheck(); }
-
-            if (StrictKeyCheck(triggerDebugMode.Value))
-            {
-                // Toggle diagnostic display
-                diagnosticMode = !diagnosticMode;
-            }
-            else if (StrictKeyCheck(triggerDebugDump.Value))
-            {
-                // Trigger diagnostic dump
-                CreatureBoardAsset asset;
-                CreaturePresenter.TryGetAsset(LocalClient.SelectedCreatureId, out asset);
-                Debug.Log("Stat Messaging Plugin: Stat Message Dump For Creature " + asset.Creature.CreatureId);
-                Debug.Log("Stat Messaging Plugin: "+asset.Creature.Name);
-            }
-            else if (StrictKeyCheck(triggerReset.Value))
-            {
-                // Trigger Stat Message reset
-	            if (LocalClient.SelectedCreatureId != null)
-                {
-                    // Reset selected mini													   						  
-					CreatureBoardAsset asset;
-					CreaturePresenter.TryGetAsset(LocalClient.SelectedCreatureId, out asset);
-					CreatureManager.SetCreatureName(asset.Creature.CreatureId, GetCreatureName(asset));
-					if (data.ContainsKey(asset.Creature.CreatureId)) { data.Remove(asset.Creature.CreatureId); }
-					SystemMessage.DisplayInfoText("Stat Messages For Creature '" + GetCreatureName(asset) + "' Reset");
-                }
-                else
-                {
-                    // Reset all minis
-                    SystemMessage.DisplayInfoText("Stat Messages For All Creatures Reset");
-                    foreach (CreatureBoardAsset asset in CreaturePresenter.AllCreatureAssets)
+                    ready = IsBoardLoaded();
+                    if (ready)
                     {
+                        Debug.Log("Stat Messaging Plugin: Started looking for messages.");
+                    }
+                    else
+                    {
+                        data.Clear();
+                        Debug.Log("Stat Messaging Plugin: Stopped looking for messages.");
+                    }
+                }
+
+                phase = "Message Check";
+                if (ready) { StatMessagingCheck(); }
+
+                phase = "Keyboard Requests";
+                if (StrictKeyCheck(triggerDebugMode.Value))
+                {
+                    // Toggle diagnostic display
+                    diagnosticMode = !diagnosticMode;
+                }
+                else if (StrictKeyCheck(triggerDebugDump.Value))
+                {
+                    // Trigger diagnostic dump
+                    CreatureBoardAsset asset;
+                    CreaturePresenter.TryGetAsset(LocalClient.SelectedCreatureId, out asset);
+                    Debug.Log("Stat Messaging Plugin: Stat Message Dump For Creature " + asset.Creature.CreatureId);
+                    Debug.Log("Stat Messaging Plugin: " + asset.Creature.Name);
+                }
+                else if (StrictKeyCheck(triggerReset.Value))
+                {
+                    // Trigger Stat Message reset
+                    if (LocalClient.SelectedCreatureId != null)
+                    {
+                        // Reset selected mini													   						  
+                        CreatureBoardAsset asset;
+                        CreaturePresenter.TryGetAsset(LocalClient.SelectedCreatureId, out asset);
                         CreatureManager.SetCreatureName(asset.Creature.CreatureId, GetCreatureName(asset));
                         if (data.ContainsKey(asset.Creature.CreatureId)) { data.Remove(asset.Creature.CreatureId); }
+                        SystemMessage.DisplayInfoText("Stat Messages For Creature '" + GetCreatureName(asset) + "' Reset");
                     }
-                }				 
-            }
-
-            if (operationQueue.Count > 0)
-            {
-                if(diagnosticMode) { Debug.Log("Stat Messaging Plugin: Operation Queue Count: " + operationQueue.Count); }
-                Change operation = operationQueue.Dequeue();
-                CreatureBoardAsset asset;
-                CreaturePresenter.TryGetAsset(operation.cid, out asset);
-                string json = asset.Creature.Name.Substring(asset.Creature.Name.IndexOf("<size=0>") + "<size=0>".Length);
-                Dictionary<string, string> info = null;
-                try { info = JsonConvert.DeserializeObject<Dictionary<string, string>>(json); } catch (Exception)
-                {
-                    Debug.Log("Stat Messaging Plugin: Corrupt Stat Block Detected. Resetting Mini's JSON Block.");
-                    info = new Dictionary<string, string>();
-                }
-                if (asset != null)
-                {
-                    switch (operation.action)
+                    else
                     {
-                        case ChangeType.added:
-                        case ChangeType.modified:
-                            // Modify or add the specified value under the specified key
-                            if(diagnosticMode) { Debug.Log("Stat Messaging Plugin: Queue Processing: On '" + operation.cid + "' process '" + operation.action + "' request for key " + operation.key + " to " + operation.value + " from " + operation.previous); }
-                            if (info.ContainsKey(operation.key)) { info[operation.key] = operation.value; } else { info.Add(operation.key, operation.value); }
-                            break;
-                        case ChangeType.removed:
-                            // Remove the key if it exists
-                            if(diagnosticMode) { Debug.Log("Stat Messaging Plugin: Queue Processing: On '" + operation.cid + "' process '" + operation.action + "' request for key " + operation.key); }
-                            if (info.ContainsKey(operation.key)) { info.Remove(operation.key); }
-                            break;
+                        // Reset all minis
+                        SystemMessage.DisplayInfoText("Stat Messages For All Creatures Reset");
+                        foreach (CreatureBoardAsset asset in CreaturePresenter.AllCreatureAssets)
+                        {
+                            CreatureManager.SetCreatureName(asset.Creature.CreatureId, GetCreatureName(asset));
+                            if (data.ContainsKey(asset.Creature.CreatureId)) { data.Remove(asset.Creature.CreatureId); }
+                        }
                     }
-                    if(diagnosticMode) { Debug.Log("Stat Messaging Plugin: Queue Processing: Setting Creature '" + operation.cid + "' name to: " + GetCreatureName(asset.Creature) + "<size=0>" + JsonConvert.SerializeObject(info)); }
-                    CreatureManager.SetCreatureName(operation.cid, GetCreatureName(asset.Creature) + "<size=0>" + JsonConvert.SerializeObject(info));
                 }
+
+                phase = "Process Queue";
+                if (operationQueue.Count > 0)
+                {
+                    if (diagnosticMode) { Debug.Log("Stat Messaging Plugin: Operation Queue Count: " + operationQueue.Count); }
+                    phase = "Process Queue: Dequeue";
+                    Change operation = operationQueue.Dequeue();
+                    phase = "Process Queue: Try Get Asset";
+                    CreatureBoardAsset asset;
+                    CreaturePresenter.TryGetAsset(operation.cid, out asset);
+                    phase = "Process Queue: Get Stat Block";
+                    Dictionary<string, string> info = null;
+                    if (asset != null)
+                    {
+                        string json = asset.Creature.Name.Substring(asset.Creature.Name.IndexOf("<size=0>") + "<size=0>".Length);
+                        try { info = JsonConvert.DeserializeObject<Dictionary<string, string>>(json); }
+                        catch (Exception)
+                        {
+                            Debug.Log("Stat Messaging Plugin: Corrupt Stat Block Detected. Resetting Mini's JSON Block.");
+                            info = new Dictionary<string, string>();
+                        }
+                        phase = "Process Queue: Switch";
+                        switch (operation.action)
+                        {
+                            case ChangeType.added:
+                            case ChangeType.modified:
+                                // Modify or add the specified value under the specified key
+                                if (diagnosticMode) { Debug.Log("Stat Messaging Plugin: Queue Processing: On '" + operation.cid + "' process '" + operation.action + "' request for key " + operation.key + " to " + operation.value + " from " + operation.previous); }
+                                if (info.ContainsKey(operation.key)) { info[operation.key] = operation.value; } else { info.Add(operation.key, operation.value); }
+                                break;
+                            case ChangeType.removed:
+                                // Remove the key if it exists
+                                if (diagnosticMode) { Debug.Log("Stat Messaging Plugin: Queue Processing: On '" + operation.cid + "' process '" + operation.action + "' request for key " + operation.key); }
+                                if (info.ContainsKey(operation.key)) { info.Remove(operation.key); }
+                                break;
+                        }
+                        if (diagnosticMode) { Debug.Log("Stat Messaging Plugin: Queue Processing: Setting Creature '" + operation.cid + "' name to: " + GetCreatureName(asset.Creature) + "<size=0>" + JsonConvert.SerializeObject(info)); }
+                        CreatureManager.SetCreatureName(operation.cid, GetCreatureName(asset.Creature) + "<size=0>" + JsonConvert.SerializeObject(info));
+                    }
+                }
+            }
+            catch (Exception x)
+            {
+                Debug.Log("Stat Messaging Plugin: Exception In Update Sequence At Phase = " + phase);
+                Debug.LogException(x);
             }
         }
 
         /// <summary>
         /// Method to display the diagnostic information when diagnostic mode is on
         /// </summary>
-        public void OnGUI()
+        void OnGUI()
         {
             if (diagnosticMode)
             {
@@ -233,7 +281,7 @@ namespace LordAshes
                 subscriptions.Add(guid, new Subscription() { key = key, callback = dataChangeCallback });
                 return guid;
             }
-            catch(Exception)
+            catch (Exception)
             {
                 return System.Guid.Empty;
             }
@@ -246,10 +294,10 @@ namespace LordAshes
         /// <param name="subscriptionId">Guid of the subscription to be removed (provided by the Subscribe method)</param>
         public static void Unsubscribe(System.Guid subscriptionId)
         {
-            if (subscriptions.ContainsKey(subscriptionId)) 
+            if (subscriptions.ContainsKey(subscriptionId))
             {
                 Debug.Log("Stat Messaging Plugin: Removing Subscription " + subscriptions[subscriptionId].key + " (" + subscriptionId + ")");
-                subscriptions.Remove(subscriptionId); 
+                subscriptions.Remove(subscriptionId);
             }
             else
             {
@@ -470,7 +518,7 @@ namespace LordAshes
                         data.Add(asset.Creature.CreatureId, GetCreatureName(asset.Creature) + "<size=0>{}");
                     }
 
-                    // Check to see if the creature name has changed
+                    // Check to see if the creature stats has changed
                     if (creatureName != data[asset.Creature.CreatureId])
                     {
                         // Extract JSON ending
@@ -523,7 +571,7 @@ namespace LordAshes
                                 // Check each subscription
                                 foreach (Subscription subscription in subscriptions.Values)
                                 {
-									if (diagnosticMode) { Debug.Log("Stat Messaging Plugin: Subscription: "+subscription.key+", Change: "+change.key+", Match: "+ (subscription.key == change.key)); }																																		   
+                                    if (diagnosticMode) { Debug.Log("Stat Messaging Plugin: Subscription: " + subscription.key + ", Change: " + change.key + ", Match: " + (subscription.key == change.key)); }
                                     // Trigger a callback for anyone subscription matching the key
                                     if (subscription.key == change.key)
                                     {
@@ -534,21 +582,33 @@ namespace LordAshes
                             // Check for legacy wild card subscriptions
                             foreach (Subscription subscription in subscriptions.Values)
                             {
-                                if (subscription.key == "*") 
-								{ 
-									if (diagnosticMode) { Debug.Log("Stat Messaging Plugin: Subscription: *"); }
-									subscription.callback(changes.ToArray()); 
-								}
+                                if (subscription.key == "*")
+                                {
+                                    if (diagnosticMode) { Debug.Log("Stat Messaging Plugin: Subscription: *"); }
+                                    subscription.callback(changes.ToArray());
+                                }
+                            }
+                            // Reflection Subscription
+                            if (caller != null && callback != null && changes != null)
+                            {
+                                if (diagnosticMode) { Debug.Log("Stat Messaging Plugin: Reflection Subscription: *"); }
+                                List<ReflectionChange> reflectionChanges = new List<ReflectionChange>();
+                                foreach(Change change in changes)
+                                {
+                                    reflectionChanges.Add(new ReflectionChange(change));
+                                }
+                                string json = JsonConvert.SerializeObject(reflectionChanges);
+                                callback.Invoke(null, new object[] { json });
                             }
                         }
                     }
                 }
             }
-            catch (Exception x) 
-			{ 
-				Debug.Log("Stat Messaging Plugin: Exception");
-				Debug.LogException(x); 
-			}
+            catch (Exception x)
+            {
+                Debug.Log("Stat Messaging Plugin: Exception");
+                Debug.LogException(x);
+            }
 
             // Indicated that next check is allowed
             checkInProgress = false;
@@ -560,16 +620,16 @@ namespace LordAshes
         /// <returns></returns>
         public static Dictionary<System.Guid, Subscription> Subscriptions()
         {
-			if (diagnosticMode) { Debug.Log("Stat Messaging Plugin: Obtaining subscriptions"); }																																		   
+            if (diagnosticMode) { Debug.Log("Stat Messaging Plugin: Obtaining subscriptions"); }
             Dictionary<System.Guid, Subscription> result = new Dictionary<Guid, Subscription>();
-            foreach(KeyValuePair<System.Guid, Subscription> entry in subscriptions)
+            foreach (KeyValuePair<System.Guid, Subscription> entry in subscriptions)
             {
                 result.Add(entry.Key, entry.Value);
             }
             return result;
-        }										
-		
-		/// <summary>
+        }
+
+        /// <summary>
         /// Method to properly evaluate shortcut keys. 
         /// </summary>
         /// <param name="check"></param>
@@ -591,6 +651,24 @@ namespace LordAshes
         private bool IsBoardLoaded()
         {
             return (CameraController.HasInstance && BoardSessionManager.HasInstance && BoardSessionManager.HasBoardAndIsInNominalState && !BoardSessionManager.IsLoading);
+        }
+
+        public static void ReflectionSubscription(string callerName, string callbackName)
+        {
+            if (diagnosticMode) { Debug.Log("Stat Messaging Plugin: Setting Reflection Subscription ("+callerName+", "+callbackName); }
+            try
+            {
+                // Setup reflection callback
+                caller = Type.GetType(callerName);
+                if (caller == null) { throw new Exception("Reflection subscribe type is invalid"); }
+                callback = caller.GetMethod(callbackName);
+                if (callback == null) { throw new Exception("Reflection callback is invalid"); }
+            }
+            catch(Exception x)
+            {
+                Debug.Log("Stat Messaging Plugin: Unable To Set Reflection Subscription");
+                Debug.LogException(x);
+            }
         }
     }
 }

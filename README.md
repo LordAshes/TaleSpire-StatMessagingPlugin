@@ -11,6 +11,7 @@ working with me to quickly find a solution. @AlbrechtWM your help is greatly app
 ## Change Log
 
 ```
+2.0.5: Added support for reflection based subscriptions.
 2.0.4: Added routines to automatically attempt to reset a mini if the JSON content becomes corrupt.
 2.0.3: Bug Fix: Messages that use a JSON content don't corrupt the JSON. Identified by CodeRush.
 2.0.2: Bug fix: Unsubscription of no subscriptions does not cause exception

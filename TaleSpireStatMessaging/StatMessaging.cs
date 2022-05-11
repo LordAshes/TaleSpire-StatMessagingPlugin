@@ -16,7 +16,7 @@ namespace LordAshes
         // Plugin info
         public const string Name = "Stat Messaging Plug-In";
         public const string Guid = "org.lordashes.plugins.statmessaging";
-        public const string Version = "2.1.0.0";
+        public const string Version = "3.0.0.0";
 
         // Prevent multiple sources from modifying data at once
         private static object exclusionLock = new object();
@@ -160,8 +160,8 @@ namespace LordAshes
                     // Trigger diagnostic dump
                     CreatureBoardAsset asset;
                     CreaturePresenter.TryGetAsset(LocalClient.SelectedCreatureId, out asset);
-                    Debug.Log("Stat Messaging Plugin: Stat Message Dump For Creature " + asset.Creature.CreatureId);
-                    Debug.Log("Stat Messaging Plugin: " + asset.Creature.Name);
+                    Debug.Log("Stat Messaging Plugin: Stat Message Dump For Creature " + asset.CreatureId);
+                    Debug.Log("Stat Messaging Plugin: " + asset.Name);
                 }
                 else if (StrictKeyCheck(triggerReset.Value))
                 {
@@ -171,8 +171,8 @@ namespace LordAshes
                         // Reset selected mini													   						  
                         CreatureBoardAsset asset;
                         CreaturePresenter.TryGetAsset(LocalClient.SelectedCreatureId, out asset);
-                        CreatureManager.SetCreatureName(asset.Creature.CreatureId, GetCreatureName(asset));
-                        if (data.ContainsKey(asset.Creature.CreatureId)) { data.Remove(asset.Creature.CreatureId); }
+                        CreatureManager.SetCreatureName(asset.CreatureId, GetCreatureName(asset));
+                        if (data.ContainsKey(asset.CreatureId)) { data.Remove(asset.CreatureId); }
                         SystemMessage.DisplayInfoText("Stat Messages For Creature '" + GetCreatureName(asset) + "' Reset");
                     }
                     else
@@ -181,8 +181,8 @@ namespace LordAshes
                         SystemMessage.DisplayInfoText("Stat Messages For All Creatures Reset");
                         foreach (CreatureBoardAsset asset in CreaturePresenter.AllCreatureAssets)
                         {
-                            CreatureManager.SetCreatureName(asset.Creature.CreatureId, GetCreatureName(asset));
-                            if (data.ContainsKey(asset.Creature.CreatureId)) { data.Remove(asset.Creature.CreatureId); }
+                            CreatureManager.SetCreatureName(asset.CreatureId, GetCreatureName(asset));
+                            if (data.ContainsKey(asset.CreatureId)) { data.Remove(asset.CreatureId); }
                         }
                     }
                 }
@@ -200,7 +200,7 @@ namespace LordAshes
                     Dictionary<string, string> info = null;
                     if (asset != null)
                     {
-                        string json = asset.Creature.Name.Substring(asset.Creature.Name.IndexOf("<size=0>") + "<size=0>".Length);
+                        string json = asset.Name.Substring(asset.Name.IndexOf("<size=0>") + "<size=0>".Length);
                         try { info = JsonConvert.DeserializeObject<Dictionary<string, string>>(json); }
                         catch (Exception)
                         {
@@ -222,8 +222,8 @@ namespace LordAshes
                                 if (info.ContainsKey(operation.key)) { info.Remove(operation.key); }
                                 break;
                         }
-                        if (diagnosticMode) { Debug.Log("Stat Messaging Plugin: Queue Processing: Setting Creature '" + operation.cid + "' name to: " + GetCreatureName(asset.Creature) + "<size=0>" + JsonConvert.SerializeObject(info)); }
-                        CreatureManager.SetCreatureName(operation.cid, GetCreatureName(asset.Creature) + "<size=0>" + JsonConvert.SerializeObject(info));
+                        if (diagnosticMode) { Debug.Log("Stat Messaging Plugin: Queue Processing: Setting Creature '" + operation.cid + "' name to: " + GetCreatureName(asset) + "<size=0>" + JsonConvert.SerializeObject(info)); }
+                        CreatureManager.SetCreatureName(operation.cid, GetCreatureName(asset) + "<size=0>" + JsonConvert.SerializeObject(info));
                     }
                 }
             }
@@ -246,7 +246,7 @@ namespace LordAshes
                 if (asset != null)
                 {
                     GUIStyle gs = new GUIStyle() { wordWrap = true };
-                    GUI.Label(new Rect(10, 30, 1900, 80), "Debug: " + asset.Creature.Name, gs);
+                    GUI.Label(new Rect(10, 30, 1900, 80), "Debug: " + asset.Name, gs);
                 }
             }
         }
@@ -298,10 +298,6 @@ namespace LordAshes
             {
                 Debug.Log("Stat Messaging Plugin: Removing Subscription " + subscriptions[subscriptionId].key + " (" + subscriptionId + ")");
                 subscriptions.Remove(subscriptionId);
-            }
-            else
-            {
-                Debug.Log("Stat Messaging Plugin: No Subscriptions To Remove");
             }
         }
 
@@ -426,40 +422,9 @@ namespace LordAshes
         /// <returns>String representation of the creature name</returns>
         public static string GetCreatureName(CreatureBoardAsset asset)
         {
-            string name = asset.Creature.Name;
-            if (name == null)
-            {
-                if (asset.CreatureLoaders[0].LoadedAsset != null)
-                    name = asset.CreatureLoaders[0].LoadedAsset.name.Replace("(Clone)", "");
-                else
-                    name = "";
-            }
-            if (name.Contains("<size=0>")) { name = name.Substring(0, name.IndexOf("<size=0>")).Trim(); }
-            return name;
-        }
-
-        /// <summary>
-        /// Method to get Creature Name
-        /// </summary>
-        /// <param name="asset">CreatureBoardAsset</param>
-        /// <returns>String representation of the creature name</returns>
-        public static string GetCreatureName(Creature creature)
-        {
-            string name = creature.Name;
-            if (name == null)
-            {
-                CreatureBoardAsset asset = null;
-                CreaturePresenter.TryGetAsset(creature.CreatureId, out asset);
-                if (asset != null)
-                {
-                    if (asset.CreatureLoaders[0].LoadedAsset != null)
-                        name = asset.CreatureLoaders[0].LoadedAsset.name.Replace("(Clone)", "");
-                    else
-                        name = "";
-                }
-                else
-                    name = "";
-            }
+            string name = asset.Name;
+            if (name == null) { name = asset.name; }
+            if (name == null) { name = GetAssetLoader(asset.CreatureId).GetComponent<MeshFilter>().name; }
             if (name.Contains("<size=0>")) { name = name.Substring(0, name.IndexOf("<size=0>")).Trim(); }
             return name;
         }
@@ -481,48 +446,46 @@ namespace LordAshes
                 foreach (CreatureBoardAsset asset in CreaturePresenter.AllCreatureAssets)
                 {
                     // Read the creature name into a string. Routine will use this because setting name takes time (i.e. is not reflected immediately).
-                    string creatureName = asset.Creature.Name;
+                    string creatureName = asset.Name;
 
                     //check for NULL creature name              
                     if (creatureName == null)
                     {
-                        if (asset.CreatureLoaders[0].LoadedAsset != null)
-                            creatureName = asset.CreatureLoaders[0].LoadedAsset.name.Replace("(Clone)", "");
-                        else
-                            creatureName = "";
+                        if (creatureName == null) { creatureName = asset.name; }
+                        if (creatureName == null) { creatureName = GetAssetLoader(asset.CreatureId).GetComponent<MeshFilter>().name; }
                     }
 
                     // Ensure creature has a JSON Block
                     if (!creatureName.Contains("<size=0>"))
                     {
                         Debug.Log("Stat Messaging Plugin: CreatureName is " + creatureName);
-                        if (data.ContainsKey(asset.Creature.CreatureId))
+                        if (data.ContainsKey(asset.CreatureId))
                         {
-                            Debug.Log("Stat Messaging Plugin: Restoring previous data for Creature '" + GetCreatureName(asset) + "' (" + asset.Creature.CreatureId + "). Probably lost due to a character rename.");
-                            data[asset.Creature.CreatureId] = GetCreatureName(asset) + data[asset.Creature.CreatureId].Substring(data[asset.Creature.CreatureId].IndexOf("<size=0>"));
-                            CreatureManager.SetCreatureName(asset.Creature.CreatureId, data[asset.Creature.CreatureId]);
-                            Debug.Log("Stat Messaging Plugin: Creature '" + GetCreatureName(asset) + "' is now '" + data[asset.Creature.CreatureId] + "'");
-                            creatureName = data[asset.Creature.CreatureId];
+                            Debug.Log("Stat Messaging Plugin: Restoring previous data for Creature '" + GetCreatureName(asset) + "' (" + asset.CreatureId + "). Probably lost due to a character rename.");
+                            data[asset.CreatureId] = GetCreatureName(asset) + data[asset.CreatureId].Substring(data[asset.CreatureId].IndexOf("<size=0>"));
+                            CreatureManager.SetCreatureName(asset.CreatureId, data[asset.CreatureId]);
+                            Debug.Log("Stat Messaging Plugin: Creature '" + GetCreatureName(asset) + "' is now '" + data[asset.CreatureId] + "'");
+                            creatureName = data[asset.CreatureId];
                         }
                         else
                         {
-                            Debug.Log("Stat Messaging Plugin: Creating new data block for Creature '" + GetCreatureName(asset) + "' (" + asset.Creature.CreatureId + "). This is probably a new asset.");
-                            CreatureManager.SetCreatureName(asset.Creature.CreatureId, creatureName + " <size=0>{}");
+                            Debug.Log("Stat Messaging Plugin: Creating new data block for Creature '" + GetCreatureName(asset) + "' (" + asset.CreatureId + "). This is probably a new asset.");
+                            CreatureManager.SetCreatureName(asset.CreatureId, creatureName + " <size=0>{}");
                             creatureName = creatureName + " <size=0>{}";
                         }
                     }
 
                     // Ensure that creature has a entry in the data dictionary
-                    if (!data.ContainsKey(asset.Creature.CreatureId))
+                    if (!data.ContainsKey(asset.CreatureId))
                     {
-                        data.Add(asset.Creature.CreatureId, GetCreatureName(asset.Creature) + "<size=0>{}");
+                        data.Add(asset.CreatureId, GetCreatureName(asset) + "<size=0>{}");
                     }
 
                     // Check to see if the creature stats has changed
-                    if (creatureName != data[asset.Creature.CreatureId])
+                    if (creatureName != data[asset.CreatureId])
                     {
                         // Extract JSON ending
-                        string lastJson = data[asset.Creature.CreatureId].Substring(data[asset.Creature.CreatureId].IndexOf("<size=0>") + "<size=0>".Length);
+                        string lastJson = data[asset.CreatureId].Substring(data[asset.CreatureId].IndexOf("<size=0>") + "<size=0>".Length);
                         string currentJson = creatureName.Substring(creatureName.IndexOf("<size=0>") + "<size=0>".Length);
                         // Compare entries
                         Dictionary<string, string> last = null;
@@ -530,7 +493,7 @@ namespace LordAshes
                         try { last = JsonConvert.DeserializeObject<Dictionary<string, string>>(lastJson); } catch (Exception) { last = new Dictionary<string, string>(); }
                         try { current = JsonConvert.DeserializeObject<Dictionary<string, string>>(currentJson); } catch (Exception) { current = new Dictionary<string, string>(); }
                         // Update data dictionary with current info
-                        data[asset.Creature.CreatureId] = creatureName;
+                        data[asset.CreatureId] = creatureName;
                         List<Change> changes = new List<Change>();
 
                         // Compare entries in the last data to current data
@@ -539,14 +502,14 @@ namespace LordAshes
                             // If last data does not appear in current data then the data was removed
                             if (!current.ContainsKey(entry.Key))
                             {
-                                changes.Add(new Change() { action = ChangeType.removed, key = entry.Key, previous = entry.Value, value = "", cid = asset.Creature.CreatureId });
+                                changes.Add(new Change() { action = ChangeType.removed, key = entry.Key, previous = entry.Value, value = "", cid = asset.CreatureId });
                             }
                             else
                             {
                                 // If last data does not match current data then the data has been modified
                                 if (entry.Value != current[entry.Key])
                                 {
-                                    changes.Add(new Change() { action = ChangeType.modified, key = entry.Key, previous = entry.Value, value = current[entry.Key], cid = asset.Creature.CreatureId });
+                                    changes.Add(new Change() { action = ChangeType.modified, key = entry.Key, previous = entry.Value, value = current[entry.Key], cid = asset.CreatureId });
                                 };
                             }
                         }
@@ -557,7 +520,7 @@ namespace LordAshes
                             // If current data does not exist in last data then a new entry has been added
                             if (!last.ContainsKey(entry.Key))
                             {
-                                changes.Add(new Change() { action = ChangeType.added, key = entry.Key, previous = "", value = entry.Value, cid = asset.Creature.CreatureId });
+                                changes.Add(new Change() { action = ChangeType.added, key = entry.Key, previous = "", value = entry.Value, cid = asset.CreatureId });
                             };
                         }
 
@@ -669,6 +632,44 @@ namespace LordAshes
                 Debug.Log("Stat Messaging Plugin: Unable To Set Reflection Subscription");
                 Debug.LogException(x);
             }
+        }
+
+        public static GameObject GetBaseLoader(CreatureGuid cid)
+        {
+            CreatureBoardAsset asset = null;
+            CreaturePresenter.TryGetAsset(cid, out asset);
+            if (asset != null)
+            {
+                Type cba = typeof(CreatureBoardAsset);
+                foreach (FieldInfo fi in cba.GetRuntimeFields())
+                {
+                    if (fi.Name == "_base")
+                    {
+                        CreatureBase obj = (CreatureBase)fi.GetValue(asset);
+                        return obj.transform.GetChild(0).gameObject;
+                    }
+                }
+            }
+            return null;
+        }
+
+        public static GameObject GetAssetLoader(CreatureGuid cid)
+        {
+            CreatureBoardAsset asset = null;
+            CreaturePresenter.TryGetAsset(cid, out asset);
+            if (asset != null)
+            {
+                Type cba = typeof(CreatureBoardAsset);
+                foreach (FieldInfo fi in cba.GetRuntimeFields())
+                {
+                    if (fi.Name == "_creatureRoot")
+                    {
+                        Transform obj = (Transform)fi.GetValue(asset);
+                        return obj.GetChild(0).GetChild(2).GetChild(0).gameObject;
+                    }
+                }
+            }
+            return null;
         }
     }
 }

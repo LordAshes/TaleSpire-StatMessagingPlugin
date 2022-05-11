@@ -11,6 +11,7 @@ working with me to quickly find a solution. @AlbrechtWM your help is greatly app
 ## Change Log
 
 ```
+3.0.0: Fix after BR HF Integration update
 2.0.5: Added support for reflection based subscriptions.
 2.0.4: Added routines to automatically attempt to reset a mini if the JSON content becomes corrupt.
 2.0.3: Bug Fix: Messages that use a JSON content don't corrupt the JSON. Identified by CodeRush.
